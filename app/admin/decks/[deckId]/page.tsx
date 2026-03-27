@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { AdminDeckRouteClient } from "@/components/admin-deck-route-client";
 
 type AdminDeckRoutePageProps = {
@@ -9,5 +11,9 @@ type AdminDeckRoutePageProps = {
 export default async function AdminDeckRoutePage({ params }: AdminDeckRoutePageProps) {
   const { deckId } = await params;
 
-  return <AdminDeckRouteClient deckId={deckId} />;
+  return (
+    <Suspense fallback={null}>
+      <AdminDeckRouteClient deckId={deckId} />
+    </Suspense>
+  );
 }
