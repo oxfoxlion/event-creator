@@ -32,6 +32,7 @@ export type EventCard = {
   status: "active" | "archived";
   distribution_mode: "direct" | "deck_draw";
   usage_rule: "participant_markable" | "admin_only";
+  transfer_rule: "non_transferable" | "participant_transferable";
   deck_id: string | null;
   is_active: boolean;
   is_claimed: boolean;
@@ -98,6 +99,7 @@ export type OwnedClaim = {
   used_at: string | null;
   usage_status: "unused" | "used";
   usage_rule: "participant_markable" | "admin_only";
+  transfer_rule: "non_transferable" | "participant_transferable";
   card: {
     display_mode: "center" | "content";
     title: string;
@@ -176,6 +178,7 @@ export type AdminDeck = {
   publish_rule: "immediate" | "scheduled";
   publish_at: string | null;
   usage_rule: "participant_markable" | "admin_only";
+  transfer_rule: "non_transferable" | "participant_transferable";
   status: "active" | "archived";
   is_active: boolean;
   source_card_id: string | null;
@@ -216,6 +219,51 @@ export type AdminClaim = {
   assigned_display_mode: "center" | "content" | null;
 };
 
+export type ParticipantTransferTokenPayload = {
+  user: SessionUser;
+  token: string;
+  participant: {
+    id: string;
+    display_name: string;
+    discord_username: string;
+    avatar_url: string | null;
+  };
+  event: {
+    id: string;
+    slug: string;
+    title: string;
+    checked_in_at: string;
+  };
+};
+
+export type ParticipantTransferPreview = {
+  message: string;
+  claim: {
+    claim_id: string;
+    event_id: string;
+    event_slug: string;
+    event_title: string;
+    card_id: string;
+    usage_status: "unused" | "used";
+    card: {
+      display_mode: "center" | "content";
+      title: string;
+      center_text: string | null;
+      content_markdown: string;
+    };
+  };
+  target: {
+    id: string;
+    display_name: string | null;
+    discord_username: string | null;
+    avatar_url: string | null;
+    event_id: string;
+    event_slug: string;
+    event_title: string;
+    checked_in_at: string;
+  };
+};
+
 type ApiResult<T> = {
   data: T | null;
   error: string | null;
@@ -223,7 +271,7 @@ type ApiResult<T> = {
 };
 
 function getApiBase() {
-  return (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001").replace(/\/+$/, "");
+  return (process.env.NEXT_PUBLIC_API_BASE || "/api").replace(/\/+$/, "");
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
@@ -320,6 +368,38 @@ export async function getParticipantEventCards(eventSlug: string) {
   }>(`/event_creator/events/${eventSlug}/cards`);
 }
 
+export async function getParticipantTransferToken(eventSlug: string) {
+  return apiFetch<ParticipantTransferTokenPayload>(
+    `/event_creator/me/transfer-token?eventSlug=${encodeURIComponent(eventSlug)}`,
+  );
+}
+
+export async function previewParticipantCardTransfer(claimId: string, token: string) {
+  return apiFetch<ParticipantTransferPreview>(`/event_creator/me/cards/${claimId}/transfer-preview`, {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
+export async function transferParticipantCard(claimId: string, token: string) {
+  return apiFetch<{
+    message: string;
+    claim: {
+      claim_id: string;
+      event_id: string;
+      card_id: string;
+      user_id: string;
+      claimed_at: string;
+      used_at: string | null;
+      usage_status: "unused" | "used";
+    };
+    target: ParticipantTransferPreview["target"];
+  }>(`/event_creator/me/cards/${claimId}/transfer`, {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
 export async function getJoinedEvents() {
   return apiFetch<{ user: SessionUser; events: JoinedEvent[] }>("/event_creator/me/events");
 }
@@ -410,6 +490,7 @@ export async function createAdminDeck(
     publish_rule?: "immediate" | "scheduled";
     publish_at?: string | null;
     usage_rule?: "participant_markable" | "admin_only";
+    transfer_rule?: "non_transferable" | "participant_transferable";
     status?: "active" | "archived";
     is_active?: boolean;
     card: {
@@ -446,6 +527,7 @@ export async function updateAdminDeck(
     publish_rule?: "immediate" | "scheduled";
     publish_at?: string | null;
     usage_rule?: "participant_markable" | "admin_only";
+    transfer_rule?: "non_transferable" | "participant_transferable";
     status?: "active" | "archived";
     is_active?: boolean;
     card?: {
