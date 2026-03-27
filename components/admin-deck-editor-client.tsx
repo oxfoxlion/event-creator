@@ -158,11 +158,12 @@ export function AdminDeckEditorClient({ eventId, deckId, events = [], onEventCha
       return;
     }
 
+    const targetDeckId = deckId;
     let cancelled = false;
 
     async function loadDeck() {
       setLoading(true);
-      await loadDeckData(deckId);
+      await loadDeckData(targetDeckId);
       if (cancelled) {
         return;
       }
@@ -809,7 +810,7 @@ export function AdminDeckEditorClient({ eventId, deckId, events = [], onEventCha
                           <div>
                             <p className="font-medium text-foreground">{title || "未命名卡片"}</p>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              第 {slotIndex} 張{quantity > 1 ? ` / 共 ${quantity} 張` : ""}
+                              第 {slotIndex} 張{Number(quantity) > 1 ? ` / 共 ${quantity} 張` : ""}
                             </p>
                           </div>
                         </TableCell>

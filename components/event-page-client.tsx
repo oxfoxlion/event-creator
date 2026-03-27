@@ -140,7 +140,6 @@ export function EventPageClient({
       return;
     }
 
-    setUser(result.data.user ?? user);
     setEvent(result.data.event);
     setError(null);
     const nextMessage =

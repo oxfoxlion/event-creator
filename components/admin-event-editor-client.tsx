@@ -106,18 +106,19 @@ export function AdminEventEditorClient({ eventId }: AdminEventEditorClientProps)
       return;
     }
 
+    const targetEventId = eventId;
     let cancelled = false;
 
     async function loadShare() {
       setShareLoading(true);
-      const result = await getAdminEventShare(eventId);
+      const result = await getAdminEventShare(targetEventId);
 
       if (cancelled) {
         return;
       }
 
       if (result.status === 401) {
-        router.replace(`/login?redirect_to=${encodeURIComponent(`/admin/events/${eventId}`)}`);
+        router.replace(`/login?redirect_to=${encodeURIComponent(`/admin/events/${targetEventId}`)}`);
         return;
       }
 
@@ -145,18 +146,19 @@ export function AdminEventEditorClient({ eventId }: AdminEventEditorClientProps)
       return;
     }
 
+    const targetEventId = eventId;
     let cancelled = false;
 
     async function loadDecks() {
       setDecksLoading(true);
-      const result = await getAdminDecks(eventId);
+      const result = await getAdminDecks(targetEventId);
 
       if (cancelled) {
         return;
       }
 
       if (result.status === 401) {
-        router.replace(`/login?redirect_to=${encodeURIComponent(`/admin/events/${eventId}?tab=decks`)}`);
+        router.replace(`/login?redirect_to=${encodeURIComponent(`/admin/events/${targetEventId}?tab=decks`)}`);
         return;
       }
 
