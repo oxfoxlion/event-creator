@@ -271,7 +271,7 @@ type ApiResult<T> = {
 };
 
 function getApiBase() {
-  return (process.env.NEXT_PUBLIC_API_BASE || "/api").replace(/\/+$/, "");
+  return (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001").replace(/\/+$/, "");
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
