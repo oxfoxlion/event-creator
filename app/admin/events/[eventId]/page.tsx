@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { AdminEventEditorClient } from "@/components/admin-event-editor-client";
 
 type AdminEventPageProps = {
@@ -9,5 +11,9 @@ type AdminEventPageProps = {
 export default async function AdminEventPage({ params }: AdminEventPageProps) {
   const { eventId } = await params;
 
-  return <AdminEventEditorClient eventId={eventId} />;
+  return (
+    <Suspense fallback={null}>
+      <AdminEventEditorClient eventId={eventId} />
+    </Suspense>
+  );
 }
