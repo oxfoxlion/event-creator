@@ -18,6 +18,7 @@ type Block =
   | { type: "heading3"; content: string }
   | { type: "paragraph"; content: string }
   | { type: "list"; items: string[] }
+  | { type: "ordered-list"; items: string[] }
   | { type: "blockquote"; content: string }
   | { type: "divider" };
 
@@ -36,6 +37,7 @@ function parseBlocks(content: string): Block[] {
   const blocks: Block[] = [];
   let paragraphLines: string[] = [];
   let listItems: string[] = [];
+  let orderedListItems: string[] = [];
 
   function flushParagraph() {
     if (paragraphLines.length === 0) {
@@ -53,18 +55,28 @@ function parseBlocks(content: string): Block[] {
     listItems = [];
   }
 
+  function flushOrderedList() {
+    if (orderedListItems.length === 0) {
+      return;
+    }
+    blocks.push({ type: "ordered-list", items: orderedListItems });
+    orderedListItems = [];
+  }
+
   for (const rawLine of lines) {
     const line = rawLine.trim();
 
     if (!line) {
       flushParagraph();
       flushList();
+      flushOrderedList();
       continue;
     }
 
     if (line === "---") {
       flushParagraph();
       flushList();
+      flushOrderedList();
       blocks.push({ type: "divider" });
       continue;
     }
@@ -72,6 +84,7 @@ function parseBlocks(content: string): Block[] {
     if (line.startsWith("### ")) {
       flushParagraph();
       flushList();
+      flushOrderedList();
       blocks.push({ type: "heading3", content: line.slice(4) });
       continue;
     }
@@ -79,6 +92,7 @@ function parseBlocks(content: string): Block[] {
     if (line.startsWith("## ")) {
       flushParagraph();
       flushList();
+      flushOrderedList();
       blocks.push({ type: "heading2", content: line.slice(3) });
       continue;
     }
@@ -86,6 +100,7 @@ function parseBlocks(content: string): Block[] {
     if (line.startsWith("# ")) {
       flushParagraph();
       flushList();
+      flushOrderedList();
       blocks.push({ type: "heading1", content: line.slice(2) });
       continue;
     }
@@ -93,13 +108,22 @@ function parseBlocks(content: string): Block[] {
     if (line.startsWith("> ")) {
       flushParagraph();
       flushList();
+      flushOrderedList();
       blocks.push({ type: "blockquote", content: line.slice(2) });
       continue;
     }
 
     if (line.startsWith("- ") || line.startsWith("* ")) {
       flushParagraph();
+      flushOrderedList();
       listItems.push(line.slice(2));
+      continue;
+    }
+
+    if (/^\d+\.\s+/.test(line)) {
+      flushParagraph();
+      flushList();
+      orderedListItems.push(line.replace(/^\d+\.\s+/, ""));
       continue;
     }
 
@@ -108,6 +132,7 @@ function parseBlocks(content: string): Block[] {
 
   flushParagraph();
   flushList();
+  flushOrderedList();
 
   return blocks;
 }
@@ -147,6 +172,16 @@ function renderBlock(block: Block, index: number) {
             </li>
           ))}
         </ul>
+      );
+    case "ordered-list":
+      return (
+        <ol key={index} className="space-y-2 pl-6">
+          {block.items.map((item, itemIndex) => (
+            <li key={`${index}-${itemIndex}`} className="list-decimal">
+              {renderInline(item)}
+            </li>
+          ))}
+        </ol>
       );
     case "blockquote":
       return (

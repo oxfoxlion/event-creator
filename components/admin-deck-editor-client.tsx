@@ -13,6 +13,7 @@ import {
   AdminEvent,
   AdminDeckSlot,
   createAdminDeck,
+  getAdminEvents,
   getAdminClaimManagement,
   getAdminDeck,
   markAdminCardSlotStatus,
@@ -90,6 +91,12 @@ export function AdminDeckEditorClient({ eventId, deckId, events = [], onEventCha
     center_text: string | null;
     content_markdown: string;
   } | null>(null);
+  const [copyModalOpen, setCopyModalOpen] = useState(false);
+  const [copyEvents, setCopyEvents] = useState<AdminEvent[]>([]);
+  const [copyTargetEventId, setCopyTargetEventId] = useState("");
+  const [copyLoading, setCopyLoading] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   const loadDeckData = useCallback(async (targetDeckId: string, options?: { preserveMessage?: boolean }) => {
     const [deckResult, claimsResult] = await Promise.all([
@@ -189,7 +196,9 @@ export function AdminDeckEditorClient({ eventId, deckId, events = [], onEventCha
   const deckCardSlots = useMemo(
     () => {
       if (infoForm.deck_rule === "random_draw") {
+        const activeCardIds = new Set(cards.map((card) => card.id));
         return [...slots]
+          .filter((slot) => activeCardIds.has(slot.deck_item_id))
           .sort((left, right) => {
             const leftOrder = Number(left.slot_order || 0);
             const rightOrder = Number(right.slot_order || 0);
@@ -288,6 +297,75 @@ export function AdminDeckEditorClient({ eventId, deckId, events = [], onEventCha
             }))
           : [],
     };
+  }
+
+  async function openCopyModal() {
+    setCopyModalOpen(true);
+    setCopyError(null);
+
+    if (copyEvents.length > 0) {
+      setCopyTargetEventId((current) => current || "");
+      return;
+    }
+
+    setCopyLoading(true);
+    const result = await getAdminEvents();
+    setCopyLoading(false);
+
+    if (result.status === 401) {
+      router.replace(`/login?redirect_to=${encodeURIComponent(deckId ? `/admin/decks/${deckId}?eventId=${eventId}` : "/admin/decks")}`);
+      return;
+    }
+
+    if (!result.data) {
+      setCopyError(result.error || "讀取活動列表失敗");
+      return;
+    }
+
+    setCopyEvents(result.data.events);
+    setCopyTargetEventId("");
+  }
+
+  function closeCopyModal() {
+    if (copying) {
+      return;
+    }
+
+    setCopyModalOpen(false);
+    setCopyError(null);
+  }
+
+  async function handleCopyDeck() {
+    if (!copyTargetEventId) {
+      setCopyError("請先選擇要複製到哪一個活動。");
+      return;
+    }
+
+    setCopying(true);
+    setCopyError(null);
+
+    const payload = buildPayload();
+    const result = await createAdminDeck(copyTargetEventId, {
+      ...payload,
+      items:
+        payload.items?.map((item) => ({
+          display_mode: item.display_mode,
+          title: item.title,
+          center_text: item.center_text,
+          content_markdown: item.content_markdown,
+          total_quantity: item.total_quantity,
+        })) || [],
+    });
+
+    setCopying(false);
+
+    if (!result.data) {
+      setCopyError(result.error || "複製牌組失敗");
+      return;
+    }
+
+    setCopyModalOpen(false);
+    router.push(`/admin/decks/${result.data.deck.id}?eventId=${copyTargetEventId}`);
   }
 
   async function handleSaveInfo(event: FormEvent<HTMLFormElement>) {
@@ -460,6 +538,15 @@ export function AdminDeckEditorClient({ eventId, deckId, events = [], onEventCha
             </div>
             {!isNew ? (
               <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full px-4"
+                  onClick={openCopyModal}
+                >
+                  <Copy className="size-4" />
+                  <span>複製牌組</span>
+                </Button>
                 <Button
                   type="button"
                   variant={infoMode === "view" ? "default" : "outline"}
@@ -898,6 +985,55 @@ export function AdminDeckEditorClient({ eventId, deckId, events = [], onEventCha
           card={previewCard}
           onClose={() => setPreviewCard(null)}
         />
+      ) : null}
+
+      {copyModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+          <button
+            type="button"
+            className="absolute inset-0 bg-foreground/35 backdrop-blur-sm"
+            aria-label="關閉牌組複製視窗"
+            onClick={closeCopyModal}
+          />
+          <div className="relative z-10 w-full max-w-lg rounded-4xl border border-border/80 bg-card/95 p-6 shadow-[0_40px_140px_-60px_rgba(20,20,20,0.5)]">
+            <div>
+              <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">牌組複製</p>
+              <h2 className="mt-2 text-2xl font-semibold text-foreground">選擇要複製到哪一個活動</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                會複製目前牌組的規則與卡片內容，不會帶入既有的領取與核銷紀錄。
+              </p>
+            </div>
+
+            <div className="mt-6 grid gap-3">
+              <Field label="目標活動">
+                <select
+                  className="rounded-2xl border border-input bg-background px-4 py-3"
+                  value={copyTargetEventId}
+                  onChange={(event) => setCopyTargetEventId(event.target.value)}
+                  disabled={copyLoading || copying}
+                >
+                  <option value="">請選擇活動</option>
+                  {copyEvents.map((event) => (
+                    <option key={event.id} value={event.id}>
+                      {event.title}{event.id === eventId ? "（目前活動）" : ""}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              {copyLoading ? <p className="text-sm text-muted-foreground">活動列表載入中...</p> : null}
+              {copyError ? <p className="text-sm text-destructive">{copyError}</p> : null}
+            </div>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <Button type="button" variant="outline" className="rounded-full px-5" onClick={closeCopyModal} disabled={copying}>
+                取消
+              </Button>
+              <Button type="button" className="rounded-full px-5" onClick={handleCopyDeck} disabled={copying || copyLoading || !copyTargetEventId}>
+                {copying ? "複製中..." : "完成"}
+              </Button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </AdminShell>
   );
