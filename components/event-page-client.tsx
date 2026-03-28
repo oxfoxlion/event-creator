@@ -420,17 +420,21 @@ function CardListSection({
                       {pendingAction === card.id ? "領取中..." : "領取卡片"}
                     </Button>
                   ) : null}
-                  {/* <Button
-                    type="button"
-                    variant="outline"
-                    className="hidden rounded-full px-5 md:inline-flex"
-                    onClick={() => onPreview(card)}
-                  >
-                    查看卡片
-                  </Button> */}
-                  <Button asChild variant="outline" className="rounded-full px-5 md:hidden">
-                    <Link href={`/events/${eventSlug}/cards/${card.id}`}>查看卡片</Link>
-                  </Button>
+                  {card.is_claimed ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="hidden rounded-full px-5 md:inline-flex"
+                        onClick={() => onPreview(card)}
+                      >
+                        查看卡片
+                      </Button>
+                      <Button asChild variant="outline" className="rounded-full px-5 md:hidden">
+                        <Link href={`/events/${eventSlug}/cards/${card.id}`}>查看卡片</Link>
+                      </Button>
+                    </>
+                  ) : null}
                 </div>
               </div>
             </article>
