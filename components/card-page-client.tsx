@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 
+import { ParticipantTransferModal } from "@/components/participant-transfer-modal";
 import { Button } from "@/components/ui/button";
 import { EventCard, getParticipantEvent } from "@/lib/eventCreatorApi";
 import { SimpleMarkdown } from "@/components/simple-markdown";
@@ -20,6 +21,8 @@ export function CardPageClient({ eventSlug, cardId }: CardPageClientProps) {
   const [eventTitle, setEventTitle] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [transferOpen, setTransferOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,17 +73,42 @@ export function CardPageClient({ eventSlug, cardId }: CardPageClientProps) {
     return <StateShell title="找不到卡片" description={error || "目前沒有可顯示的卡片內容。"} />;
   }
 
+  const canTransfer =
+    card.is_claimed &&
+    Boolean(card.claim_id) &&
+    card.transfer_rule === "participant_transferable" &&
+    card.usage_status === "unused";
+
   if (isCenterCard) {
     const centerText = card.assigned_card?.center_text || card.center_text || card.assigned_card?.title || card.title;
     return (
       <main className="flex min-h-screen flex-col bg-foreground text-background">
+        {transferOpen && card.claim_id ? (
+          <ParticipantTransferModal
+            eventSlug={eventSlug}
+            claimId={card.claim_id}
+            card={card}
+            onClose={() => setTransferOpen(false)}
+            onTransferred={(nextMessage) => {
+              setMessage(nextMessage);
+              router.replace(`/events/${eventSlug}?tab=cards`);
+            }}
+          />
+        ) : null}
         <div className="flex items-center justify-between px-6 py-5 text-sm text-background/70">
           <span>{eventTitle}</span>
-          <Button asChild variant="secondary" size="icon" className="rounded-full">
-            <Link href={`/events/${eventSlug}?tab=cards`} aria-label="關閉卡片">
-              <X className="size-4" />
-            </Link>
-          </Button>
+          <div className="flex items-center gap-3">
+            {canTransfer ? (
+              <Button type="button" variant="secondary" className="rounded-full px-4" onClick={() => setTransferOpen(true)}>
+                轉讓
+              </Button>
+            ) : null}
+            <Button asChild variant="secondary" size="icon" className="rounded-full">
+              <Link href={`/events/${eventSlug}?tab=cards`} aria-label="關閉卡片">
+                <X className="size-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
         <div className="flex flex-1 items-center justify-center px-6 py-12 md:px-10">
           <div className="w-full md:rounded-[3rem] md:border md:border-background/20 md:px-10 md:py-14 md:shadow-[0_0_160px_-40px_rgba(255,255,255,0.4)]">
@@ -89,12 +117,25 @@ export function CardPageClient({ eventSlug, cardId }: CardPageClientProps) {
             </p>
           </div>
         </div>
+        {message ? <p className="px-6 pb-6 text-sm text-background/80">{message}</p> : null}
       </main>
     );
   }
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 px-6 py-8">
+      {transferOpen && card.claim_id ? (
+        <ParticipantTransferModal
+          eventSlug={eventSlug}
+          claimId={card.claim_id}
+          card={card}
+          onClose={() => setTransferOpen(false)}
+          onTransferred={(nextMessage) => {
+            setMessage(nextMessage);
+            router.replace(`/events/${eventSlug}?tab=cards`);
+          }}
+        />
+      ) : null}
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">{eventTitle}</p>
@@ -102,6 +143,11 @@ export function CardPageClient({ eventSlug, cardId }: CardPageClientProps) {
             {card.assigned_card?.title || card.title}
           </h1>
         </div>
+        {canTransfer ? (
+          <Button type="button" variant="outline" className="rounded-full px-5" onClick={() => setTransferOpen(true)}>
+            轉讓
+          </Button>
+        ) : null}
         <Button asChild variant="outline" size="icon" className="rounded-full md:hidden">
           <Link href={`/events/${eventSlug}?tab=cards`} aria-label="關閉卡片">
             <X className="size-4" />
@@ -114,6 +160,7 @@ export function CardPageClient({ eventSlug, cardId }: CardPageClientProps) {
       <section className="p-0 md:max-h-[72vh] md:overflow-y-auto md:rounded-4xl md:border md:border-border/80 md:bg-card/90 md:p-8 md:shadow-[0_30px_120px_-60px_rgba(80,40,10,0.45)]">
         <SimpleMarkdown content={card.assigned_card?.content_markdown || card.content_markdown} />
       </section>
+      {message ? <p className="text-sm text-primary">{message}</p> : null}
     </main>
   );
 }

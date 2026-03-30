@@ -202,6 +202,8 @@ function SidebarCard({
   onClose?: () => void;
 }) {
   const loginHref = `/login?redirect_to=${encodeURIComponent(pathname || "/dashboard")}`;
+  const displayName = user?.display_name || user?.discord_username || user?.email || "尚未登入";
+  const subLabel = user?.email || (user?.discord_username ? `@${user.discord_username}` : "尚未登入");
 
   return (
     <aside className="flex h-full flex-col overflow-hidden border-r border-sidebar-border/80 bg-sidebar/98 lg:sticky lg:top-0 lg:h-screen">
@@ -218,7 +220,7 @@ function SidebarCard({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={user.avatar_url}
-                  alt={user.display_name || user.discord_username || "使用者頭像"}
+                  alt={displayName || "使用者頭像"}
                   className="size-10 rounded-full object-cover"
                 />
               ) : (
@@ -228,10 +230,10 @@ function SidebarCard({
             {!collapsed ? (
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-sidebar-foreground">
-                  {user?.display_name || user?.discord_username || "尚未登入"}
+                  {displayName}
                 </p>
                 <p className="truncate text-xs text-sidebar-foreground/58">
-                  {user ? `@${user.discord_username}` : "尚未登入"}
+                  {user ? subLabel : "尚未登入"}
                 </p>
               </div>
             ) : null}

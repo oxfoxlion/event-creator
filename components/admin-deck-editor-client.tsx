@@ -33,6 +33,7 @@ type DisplayMode = "center" | "content";
 type ClaimRule = "required" | "optional";
 type PublishRule = "immediate" | "scheduled";
 type UsageRule = "participant_markable" | "admin_only";
+type TransferRule = "non_transferable" | "participant_transferable";
 type DeckStatus = "active" | "archived";
 
 type DeckCardDraft = {
@@ -53,6 +54,7 @@ const initialInfoForm = {
   publish_rule: "immediate" as PublishRule,
   publish_at: "",
   usage_rule: "admin_only" as UsageRule,
+  transfer_rule: "non_transferable" as TransferRule,
   status: "active" as DeckStatus,
   is_active: true,
 };
@@ -145,6 +147,7 @@ export function AdminDeckEditorClient({ eventId, deckId, events = [], onEventCha
       publish_rule: nextDeck.publish_rule,
       publish_at: nextDeck.publish_at || "",
       usage_rule: nextDeck.usage_rule,
+      transfer_rule: nextDeck.transfer_rule,
       status: nextDeck.status,
       is_active: nextDeck.is_active,
     });
@@ -277,6 +280,7 @@ export function AdminDeckEditorClient({ eventId, deckId, events = [], onEventCha
       publish_rule: infoForm.publish_rule,
       publish_at: infoForm.publish_rule === "scheduled" ? infoForm.publish_at || null : null,
       usage_rule: infoForm.usage_rule,
+      transfer_rule: infoForm.transfer_rule,
       status: infoForm.status,
       is_active: infoForm.is_active,
       card: {
@@ -604,6 +608,9 @@ export function AdminDeckEditorClient({ eventId, deckId, events = [], onEventCha
                   <ReadOnlyValue>{translateDeckStatus(infoForm.status)}</ReadOnlyValue>
                 </Field>
               </div>
+              <Field label="轉讓規則">
+                <ReadOnlyValue>{translateTransferRule(infoForm.transfer_rule)}</ReadOnlyValue>
+              </Field>
             </div>
           ) : (
             <form className="mt-6 grid gap-4" onSubmit={handleSaveInfo}>
@@ -737,6 +744,21 @@ export function AdminDeckEditorClient({ eventId, deckId, events = [], onEventCha
                   </select>
                 </Field>
               </div>
+              <Field label="轉讓規則">
+                <select
+                  className="rounded-2xl border border-input bg-background px-4 py-3"
+                  value={infoForm.transfer_rule}
+                  onChange={(event) =>
+                    setInfoForm((current) => ({
+                      ...current,
+                      transfer_rule: event.target.value as TransferRule,
+                    }))
+                  }
+                >
+                  <option value="non_transferable">不可轉讓</option>
+                  <option value="participant_transferable">可由 participant 互相轉讓</option>
+                </select>
+              </Field>
               <div className="flex flex-wrap gap-3">
                 <Button className="rounded-full px-6" disabled={saving || (isNew && !eventId)}>
                   {isNew && !eventId ? "請先選擇活動" : saving ? "儲存中..." : isNew ? "建立牌組" : "儲存牌組資訊"}
@@ -1113,6 +1135,10 @@ function translateUsageRule(value: UsageRule) {
 
 function translateDeckStatus(value: DeckStatus) {
   return value === "active" ? "啟用中" : "已封存";
+}
+
+function translateTransferRule(value: TransferRule) {
+  return value === "participant_transferable" ? "可由 participant 互相轉讓" : "不可轉讓";
 }
 
 function translateUsageStatus(status: string) {

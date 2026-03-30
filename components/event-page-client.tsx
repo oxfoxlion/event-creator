@@ -5,13 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { CardPreviewModal } from "@/components/card-preview-modal";
+import { ParticipantTransferModal } from "@/components/participant-transfer-modal";
 import { ParticipantShell } from "@/components/participant-shell";
 import { Button } from "@/components/ui/button";
 import {
   EventCard,
   ParticipantEvent,
   SessionUser,
-  buildDiscordLoginUrl,
   claimEventCard,
   getParticipantEvent,
   getParticipantEventCards,
@@ -39,6 +39,7 @@ export function EventPageClient({
   const [message, setMessage] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [previewCard, setPreviewCard] = useState<EventCard | null>(null);
+  const [transferCard, setTransferCard] = useState<EventCard | null>(null);
   const currentPath = mode === "share" ? `/share/${eventSlug}` : `/events/${eventSlug}`;
   const activeTab = mode === "share" ? "info" : initialTab;
 
@@ -100,6 +101,30 @@ export function EventPageClient({
       cancelled = true;
     };
   }, [currentPath, eventSlug, initialTab, mode, router]);
+
+  useEffect(() => {
+    async function handleWindowFocus() {
+      const eventResult = await getParticipantEvent(eventSlug);
+      if (!eventResult.data) {
+        return;
+      }
+
+      setUser(eventResult.data.user);
+      setEvent(eventResult.data.event);
+
+      if (mode === "event" && eventResult.data.event.is_checked_in) {
+        const cardsResult = await getParticipantEventCards(eventSlug);
+        if (cardsResult.data) {
+          setCards(cardsResult.data.cards);
+        }
+      }
+    }
+
+    window.addEventListener("focus", handleWindowFocus);
+    return () => {
+      window.removeEventListener("focus", handleWindowFocus);
+    };
+  }, [eventSlug, mode]);
 
   const claimableCards = useMemo(
     () => cards.filter((card) => !card.is_claimed && card.claim_rule === "optional"),
@@ -232,7 +257,7 @@ export function EventPageClient({
             <div className="mt-6">
               {!user ? (
                 <Button asChild size="lg" className="rounded-full px-6">
-                  <a href={buildDiscordLoginUrl(currentPath)}>使用 Discord 登入參加活動</a>
+                  <Link href={`/login?redirect_to=${encodeURIComponent(currentPath)}`}>登入後參加活動</Link>
                 </Button>
               ) : !event.is_checked_in ? (
                 <Button
@@ -281,12 +306,28 @@ export function EventPageClient({
               onClose={() => setPreviewCard(null)}
             />
           ) : null}
+          {transferCard?.claim_id ? (
+            <ParticipantTransferModal
+              eventSlug={eventSlug}
+              claimId={transferCard.claim_id}
+              card={transferCard}
+              onClose={() => setTransferCard(null)}
+              onTransferred={(nextMessage) => {
+                void refreshEventAndCards(nextMessage);
+              }}
+            />
+          ) : null}
 
           <section className="rounded-4xl border border-border/80 bg-card/85 p-6">
-            <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-              <Badge label={`可領取 ${claimableCards.filter((card) => card.is_available).length} 張`} />
-              <Badge label={`已擁有 ${ownedCards.length} 張`} />
-              <Badge label={`狀態：${translateEventStatus(event.status)}`} />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                <Badge label={`可領取 ${claimableCards.filter((card) => card.is_available).length} 張`} />
+                <Badge label={`已擁有 ${ownedCards.length} 張`} />
+                <Badge label={`狀態：${translateEventStatus(event.status)}`} />
+              </div>
+              <Button asChild variant="outline" className="rounded-full">
+                <Link href={`/me/transfer?eventSlug=${eventSlug}`}>我的交換 QR</Link>
+              </Button>
             </div>
             {message ? <p className="mt-4 text-sm text-primary">{message}</p> : null}
             {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
@@ -301,7 +342,9 @@ export function EventPageClient({
               eventSlug={eventSlug}
               pendingAction={pendingAction}
               onClaim={handleClaim}
+              showPreview={false}
               onPreview={setPreviewCard}
+              onTransfer={setTransferCard}
             />
             <CardListSection
               title="已擁有的卡片"
@@ -311,7 +354,9 @@ export function EventPageClient({
               eventSlug={eventSlug}
               pendingAction={pendingAction}
               onClaim={handleClaim}
+              showPreview={true}
               onPreview={setPreviewCard}
+              onTransfer={setTransferCard}
             />
           </section>
         </>
@@ -381,7 +426,9 @@ function CardListSection({
   eventSlug,
   pendingAction,
   onClaim,
+  showPreview,
   onPreview,
+  onTransfer,
 }: {
   title: string;
   description: string;
@@ -390,7 +437,9 @@ function CardListSection({
   eventSlug: string;
   pendingAction: string | null;
   onClaim: (cardId: string) => void;
+  showPreview: boolean;
   onPreview: (card: EventCard) => void;
+  onTransfer: (card: EventCard) => void;
 }) {
   return (
     <section className="rounded-4xl border border-border/80 bg-card/85 p-6">
@@ -442,6 +491,15 @@ function CardListSection({
         )}
       </div>
     </section>
+  );
+}
+
+function canTransferCard(card: EventCard) {
+  return (
+    card.is_claimed &&
+    Boolean(card.claim_id) &&
+    card.transfer_rule === "participant_transferable" &&
+    card.usage_status === "unused"
   );
 }
 

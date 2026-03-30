@@ -1,11 +1,13 @@
 export type SessionUser = {
   id: string;
-  discord_user_id: string;
-  discord_username: string;
-  display_name: string;
+  email?: string | null;
+  discord_user_id: string | null;
+  discord_username: string | null;
+  display_name: string | null;
   avatar_url: string | null;
   created_at: string;
   organizer_event_ids: string[];
+  linked_providers?: string[];
 };
 
 export type AssignedCardContent = {
@@ -225,7 +227,7 @@ export type ParticipantTransferTokenPayload = {
   participant: {
     id: string;
     display_name: string;
-    discord_username: string;
+    discord_username: string | null;
     avatar_url: string | null;
   };
   event: {
@@ -278,6 +280,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<ApiResult<
   try {
     const response = await fetch(`${getApiBase()}${path}`, {
       ...init,
+      cache: "no-store",
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
@@ -317,6 +320,36 @@ export function buildDiscordLoginUrl(redirectTo: string) {
   });
 
   return `${getApiBase()}/event_creator/auth/discord/start?${params.toString()}`;
+}
+
+export function buildGoogleLoginUrl(redirectTo: string) {
+  const redirectPath = redirectTo.startsWith("/") ? redirectTo : "/me/events";
+  const params = new URLSearchParams({
+    redirect_to: redirectPath,
+  });
+
+  return `${getApiBase()}/event_creator/auth/google/start?${params.toString()}`;
+}
+
+export async function postPasswordRegister(payload: {
+  email: string;
+  password: string;
+  displayName?: string;
+}) {
+  return apiFetch<{ user: SessionUser }>("/event_creator/auth/password/register", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function postPasswordLogin(payload: {
+  email: string;
+  password: string;
+}) {
+  return apiFetch<{ user: SessionUser }>("/event_creator/auth/password/login", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function getCurrentUser() {

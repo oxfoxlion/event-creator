@@ -58,7 +58,7 @@ export function LandingPage() {
           </p>
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
             <Button asChild size="lg" className="rounded-full px-6">
-              <Link href="/login">使用 Discord 登入</Link>
+              <Link href="/login">前往登入入口</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="rounded-full px-6">
               <Link href="/admin/events">查看主辦後台</Link>
@@ -73,7 +73,7 @@ export function LandingPage() {
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
             <TimelineItem step="1" title="掃碼進場" description="活動 QR code 導向登入頁，保留活動目的地。" />
-            <TimelineItem step="2" title="Discord 登入" description="登入後直接回到使用者儀表板或指定活動。" />
+            <TimelineItem step="2" title="多方式登入" description="可選 Google、Discord 或帳號密碼，登入後直接回到指定活動。" />
             <TimelineItem step="3" title="簽到與領卡" description="簽到後自動補發必領卡，或讓參加者自行抽卡。" />
             <TimelineItem step="4" title="活動卡片與核銷" description="參加者在活動內查看自己的卡片，核銷規則可由活動建立者決定。" />
           </CardContent>
